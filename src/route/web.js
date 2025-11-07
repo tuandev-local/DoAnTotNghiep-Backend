@@ -12,7 +12,13 @@ let initWebRoutes = (app) => {
     router.post('/api/login', homeController.handleLoginUser);
 
     // Protected route
-    app.get('/api/auth', authenticateJWT, homeController.handleGetUserToken);
+    router.get('/api/auth', authenticateJWT, homeController.handleGetUserToken);
+
+    router.get('/api/get-user', authenticateJWT, homeController.handleGetUserInfo);
+
+    router.get('/api/allcode', homeController.handlegetAllCode);
+
+    router.put('/api/update-user', authenticateJWT, homeController.handleUpdateUserInfo);
 
 
     return app.use("/", router);
