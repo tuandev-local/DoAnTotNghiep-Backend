@@ -11,6 +11,8 @@ module.exports = (sequelize, DataTypes) => {
          */
         static associate(models) {
             // define association here
+            Document.belongsTo(models.User, { foreignKey: 'userId' }),
+                Document.hasMany(models.Favour, { foreignKey: "documentId" })
         }
     }
     Document.init({
@@ -19,8 +21,8 @@ module.exports = (sequelize, DataTypes) => {
         fileName: DataTypes.STRING,
         filePath: DataTypes.STRING,
         fileType: DataTypes.STRING,
-        facultyId: DataTypes.INTEGER,
-        majorId: DataTypes.INTEGER,
+        facultyId: DataTypes.STRING,
+        majorId: DataTypes.STRING,
         userId: DataTypes.INTEGER,
         status: DataTypes.STRING,
         download: DataTypes.INTEGER,

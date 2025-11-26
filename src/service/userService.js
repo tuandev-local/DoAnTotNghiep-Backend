@@ -5,6 +5,7 @@ import { where } from 'sequelize';
 import { raw } from 'body-parser';
 import jwt from 'jsonwebtoken';
 
+
 require('dotenv').config({ path: './src/.env' });
 
 
@@ -90,7 +91,7 @@ let loginUser = (userEmail, userPassword) => {
                 if (user) {
                     //compare password
                     let check = await bcrypt.compareSync(userPassword, user.password);
-                    const token = jwt.sign({ email: user.email, roleId: user.roleId, firstName: user.firstName, lastName: user.lastName }, process.env.JWT_SECRET, { expiresIn: '900s' });
+                    const token = jwt.sign({ email: user.email, roleId: user.roleId, firstName: user.firstName, lastName: user.lastName }, process.env.JWT_SECRET, { expiresIn: '1800s' });
                     //match password
                     if (check) {
                         userData.errCode = 0;
@@ -169,17 +170,20 @@ let updateUserInfo = (data) => {
             else {
                 let user = await db.User.findOne({
                     where: { id: data.id },
-
+                    attributes: { exclude: ['password'] },
+                    raw: false,
                 })
                 if (user) {
+                    user.email = data.email;
                     user.firstName = data.firstName;
                     user.lastName = data.lastName;
                     user.phonenumber = data.phonenumber;
+                    user.roleId = data.role;
                     await user.save();
                     resolve({
                         errCode: 0,
                         errMessage: 'Update user successfuly!',
-
+                        userEdit: user
                     })
                 }
                 else {
@@ -189,6 +193,33 @@ let updateUserInfo = (data) => {
                     })
                 }
 
+            }
+        } catch (error) {
+            reject(error)
+        }
+    })
+}
+
+let deleteUser = (inputUserId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let user = await db.User.findOne({
+                where: { id: inputUserId }
+            });
+            if (!user) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'User not found!'
+                })
+            }
+            else {
+                await db.User.destroy({
+                    where: { id: inputUserId }
+                });
+                resolve({
+                    errCode: 0,
+                    errMessage: `User is deleted!`
+                })
             }
         } catch (error) {
             reject(error)
@@ -228,5 +259,6 @@ module.exports = {
     loginUser,
     getUserInfo,
     getAllCodeService,
-    updateUserInfo
+    updateUserInfo,
+    deleteUser
 }

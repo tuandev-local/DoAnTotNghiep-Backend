@@ -15,7 +15,7 @@ module.exports = (sequelize, DataTypes) => {
     }
     Major.init({
         name: DataTypes.STRING,
-        facultyId: DataTypes.INTEGER,
+        facultyId: DataTypes.STRING,
         description: DataTypes.STRING,
 
 
