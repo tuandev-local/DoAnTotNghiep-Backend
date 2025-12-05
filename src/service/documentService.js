@@ -1,4 +1,6 @@
 
+import { where } from 'sequelize';
+import { Op } from 'sequelize';
 import db from '../models/index';
 
 require('dotenv').config({ path: './src/.env' });
@@ -32,7 +34,7 @@ let createDocument = (data) => {
                 })
             }
             else {
-                await db.Document.create({
+                let document = await db.Document.create({
                     title: data.title,
                     description: data.description,
                     facultyId: data.facultyId,
@@ -44,10 +46,21 @@ let createDocument = (data) => {
                     filePath: data.filePath,
                     fileType: data.fileType,
                 });
+                if (data.listTag && Array.isArray(data.listTag)) {
+                    for (let tagName of data.listTag) {
+                        let [tag] = await db.Tag.findOrCreate({
+                            where: { name: tagName }
+                        });
+                        await db.DocumentTag.findOrCreate({
+                            where: { documentId: document.id, tagId: tag.id },
+                            default: { documentId: document.id, tagId: tag.id }
+                        });
+                    }
+                }
+
                 resolve({
                     errCode: 0,
                     errMessage: 'Upload Document Successful!',
-
                 })
             }
         } catch (error) {
@@ -93,6 +106,7 @@ let getDocumentPaginationService = (pageInput, limitInput, offsetInput) => {
                 limit: limitInput,
                 offset: offsetInput,
                 order: [['createdAt', 'DESC']],
+
             });
             resolve({
                 errCode: 0,
@@ -124,11 +138,10 @@ let getDetailDocumentService = (documentId) => {
                     },
                     include: [
                         { model: db.User, attributes: ['firstName', 'lastName'] },
-
+                        { model: db.Tag, through: { attributes: [] }, attributes: ['name'] }
                     ],
-                    raw: true,
-                    nest: true
                 });
+
                 resolve({
                     errCode: 0,
                     data,
@@ -177,14 +190,29 @@ let getDownloadDocument = (documentId) => {
 let addFavourDocument = (data) => {
     return new Promise(async (resolve, reject) => {
         try {
-            await db.Favour.create({
-                userId: data.userId,
-                documentId: data.documentId
+            let isExist = await db.Favour.findOne({
+                where: {
+                    userId: data.userId,
+                    documentId: data.documentId
+                }
             });
-            resolve({
-                errCode: 0,
-                errMessage: 'Add Favourites Document Successful!'
-            });
+            if (isExist) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'This document already in your Favourites Document!'
+                })
+            }
+            else {
+                await db.Favour.create({
+                    userId: data.userId,
+                    documentId: data.documentId
+                });
+                resolve({
+                    errCode: 0,
+                    errMessage: 'Add Favourites Document Successful!'
+                });
+            }
+
         } catch (error) {
             reject(error)
         }
@@ -276,22 +304,31 @@ let putRejectDocument = (documentId) => {
     })
 }
 
-let getPendingDocumentList = () => {
+let getManageDocumentList = (statusInput) => {
     return new Promise(async (resolve, reject) => {
         try {
-            let document = await db.Document.findAll({
-                where: { status: 'S1' },
-                include: [
-                    { model: db.User, attributes: ['firstName', 'lastName'] },
+            if (!statusInput) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing status!....'
+                })
+            }
+            else {
+                let document = await db.Document.findAll({
+                    where: { status: statusInput },
+                    include: [
+                        { model: db.User, attributes: ['firstName', 'lastName'] },
 
-                ],
-                raw: true,
-                nest: true
-            });
-            resolve({
-                errCode: 0,
-                data: document
-            })
+                    ],
+                    raw: true,
+                    nest: true
+                });
+                resolve({
+                    errCode: 0,
+                    data: document
+                })
+            }
+
         } catch (error) {
             reject(error);
         }
@@ -330,6 +367,88 @@ let getDocumentByMajor = (majorInput) => {
     })
 }
 
+let getDocumentByKeyword = (keywordInput) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!keywordInput) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Plz input content yout want to find!'
+                })
+            }
+            else {
+                let document = await db.Document.findAll({
+                    where: {
+                        [Op.or]: [
+                            {
+                                title: {
+                                    [Op.like]: `${keywordInput}%`
+                                },
+                            },
+                            {
+                                description: {
+                                    [Op.like]: `%${keywordInput}%`
+                                }
+                            }
+                        ]
+                    }
+                });
+                resolve({
+                    errCode: 0,
+                    document: document
+                })
+            }
+        } catch (error) {
+            reject(error)
+        }
+    })
+}
+
+let suggestDocument = (documentId) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!documentId) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Document not found!'
+                })
+            }
+            else {
+                //get tag of the document input
+                const documentTags = await db.DocumentTag.findAll({
+                    where: { documentId: documentId },
+                    attributes: ['tagId']
+                });
+                const listTagId = documentTags.map(item => item.tagId);
+                //get document same tag except the view
+                const related = await db.DocumentTag.findAll({
+                    attributes: [
+                        'documentId',
+                        [db.sequelize.fn('COUNT', db.sequelize.col('tagId')), 'score']
+                    ],
+                    where: {
+                        tagId: listTagId,
+                        documentId: { [Op.ne]: documentId }
+                    },
+                    include: [
+                        { model: db.Document, attributes: ['id', 'title'] }
+                    ],
+                    group: ['documentId', 'Document.id'],
+                    limit: 5,
+                    order: [[db.sequelize.literal('score'), 'DESC']]
+                });
+
+                resolve({
+                    errCode: 0,
+                    results: related
+                })
+            }
+        } catch (error) {
+            reject(error)
+        }
+    })
+}
+
 module.exports = {
     checkDocument,
     createDocument,
@@ -342,7 +461,9 @@ module.exports = {
     getFavourDocument,
     putApproveDocument,
     putRejectDocument,
-    getPendingDocumentList,
+    getManageDocumentList,
     getDocumentByFaculty,
-    getDocumentByMajor
+    getDocumentByMajor,
+    getDocumentByKeyword,
+    suggestDocument
 }

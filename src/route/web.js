@@ -46,11 +46,15 @@ let initWebRoutes = (app) => {
 
     router.put('/api/reject-document', authenticateJWT, homeController.hadndleRejectDocument);
 
-    router.get('/api/get-pending-document', authenticateJWT, homeController.handleGetPendingDocument);
+    router.get('/api/get-manage-document', authenticateJWT, homeController.handleGetManageDocument);
 
     router.get('/api/get-document-facultyId', authenticateJWT, homeController.handleGetDocumentByFaculty);
 
     router.get('/api/get-document-majorId', authenticateJWT, homeController.handleGetDocumentByMajor);
+
+    router.get('/api/search-document-by-keyword', authenticateJWT, homeController.handleGetDocumentByKeyword);
+
+    router.get('/api/suggest-document', homeController.handleGetSuggestDocument);
 
     return app.use("/", router);
 }

@@ -12,7 +12,9 @@ module.exports = (sequelize, DataTypes) => {
         static associate(models) {
             // define association here
             Document.belongsTo(models.User, { foreignKey: 'userId' }),
-                Document.hasMany(models.Favour, { foreignKey: "documentId" })
+                Document.hasMany(models.Favour, { foreignKey: "documentId" }),
+                Document.belongsToMany(models.Tag, { through: models.DocumentTag, foreignKey: 'documentId' }),
+                Document.hasMany(models.DocumentTag, { foreignKey: "documentId" })
         }
     }
     Document.init({

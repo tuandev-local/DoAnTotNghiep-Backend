@@ -20,7 +20,7 @@ let handleRegisterUser = async (req, res) => {
         })
     }
     let message = await userService.registerUser(req.body);
-    console.log(message);
+
     return res.status(200).json(message);
 }
 
@@ -69,7 +69,7 @@ let handleGetUserInfo = async (req, res) => {
     }
     else {
         let message = await userService.getUserInfo(id);
-        console.log(message);
+
         return res.status(200).json(message);
     }
 }
@@ -112,12 +112,12 @@ let handleUploadDocuments = async (req, res) => {
     let file = req.file;
     console.log('check req file: ', file);
     if (file) {
-        let { title, description, facultyId, majorId, userId } = req.body;
+        let { title, description, facultyId, majorId, userId, listTag } = req.body;
         let fileName = file.originalname;
         let filePath = file.path;
         let fileType = file.mimetype;
-        let data = { title, description, facultyId, majorId, userId, fileName, filePath, fileType };
-        if (!title || !description || !facultyId || !majorId || !userId) {
+        let data = { title, description, facultyId, majorId, userId, fileName, filePath, fileType, listTag };
+        if (!title || !description || !facultyId || !majorId || !userId || !listTag) {
             return res.status(500).json({
                 errCode: 2,
                 errMessage: 'Missing input parameter!'
@@ -129,6 +129,7 @@ let handleUploadDocuments = async (req, res) => {
             console.log(message)
             return res.status(200).json(message)
         } catch (error) {
+            console.log(error);
             return res.status(200).json({
                 errCode: -1,
                 errMessage: 'Error from server'
@@ -254,60 +255,87 @@ let handleGetFavourDocument = async (req, res) => {
 }
 
 let hadndleApprovedDocument = async (req, res) => {
-    try {
-        let id = req.query.id;
-        if (!id) {
-            return res.status(200).json({
-                errCode: 1,
-                errMessage: 'Missing id!'
-            })
-        }
-        else {
-            let info = await documentService.putApproveDocument(id);
-            return res.status(200).json(info);
-        }
-    } catch (error) {
-        console.log(error);
-        return res.status(200).json({
-            errCode: -1,
-            message: 'Error from Server!...'
+    if (req.user.roleId !== "R1") {
+        return res.status(403).json({
+            verify: false,
+            message: "Access denied: admin role required"
         })
     }
+    else {
+        try {
+            let id = req.query.id;
+            if (!id) {
+                return res.status(200).json({
+                    errCode: 1,
+                    errMessage: 'Missing id!'
+                })
+            }
+            else {
+                let info = await documentService.putApproveDocument(id);
+                return res.status(200).json(info);
+            }
+        } catch (error) {
+            console.log(error);
+            return res.status(200).json({
+                errCode: -1,
+                message: 'Error from Server!...'
+            })
+        }
+    }
+
 }
 
 let hadndleRejectDocument = async (req, res) => {
-    try {
-        let id = req.query.id;
-        if (!id) {
+    if (req.user.roleId !== "R1") {
+        return res.status(403).json({
+            verify: false,
+            message: "Access denied: admin role required"
+        })
+    }
+    else {
+        try {
+            let id = req.query.id;
+            if (!id) {
+                return res.status(200).json({
+                    errCode: 1,
+                    errMessage: 'Missing id!'
+                })
+            }
+            else {
+                let info = await documentService.putRejectDocument(id);
+                return res.status(200).json(info);
+            }
+        } catch (error) {
+            console.log(error);
             return res.status(200).json({
-                errCode: 1,
-                errMessage: 'Missing id!'
+                errCode: -1,
+                message: 'Error from Server!...'
             })
         }
-        else {
-            let info = await documentService.putRejectDocument(id);
-            return res.status(200).json(info);
-        }
-    } catch (error) {
-        console.log(error);
-        return res.status(200).json({
-            errCode: -1,
-            message: 'Error from Server!...'
-        })
     }
+
 }
 
-let handleGetPendingDocument = async (req, res) => {
-    try {
-        let info = await documentService.getPendingDocumentList();
-        return res.status(200).json(info);
-    } catch (error) {
-        console.log(error);
-        return res.status(200).json({
-            errCode: -1,
-            message: 'Error from Server!...'
+let handleGetManageDocument = async (req, res) => {
+    if (req.user.roleId !== "R1") {
+        return res.status(403).json({
+            verify: false,
+            message: "Access denied: admin role required"
         })
     }
+    else {
+        try {
+            let info = await documentService.getManageDocumentList(req.query.status);
+            return res.status(200).json(info);
+        } catch (error) {
+            console.log(error);
+            return res.status(200).json({
+                errCode: -1,
+                message: 'Error from Server!...'
+            })
+        }
+    }
+
 }
 
 let handleGetDocumentByFaculty = async (req, res) => {
@@ -338,6 +366,34 @@ let handleGetDocumentByMajor = async (req, res) => {
     }
 }
 
+let handleGetDocumentByKeyword = async (req, res) => {
+    try {
+        let keyword = req.query.keyword;
+        let info = await documentService.getDocumentByKeyword(keyword);
+        return res.status(200).json(info);
+    } catch (error) {
+        console.log(error);
+        return res.status(200).json({
+            errCode: -1,
+            message: 'Error from Server!...'
+        })
+    }
+}
+
+let handleGetSuggestDocument = async (req, res) => {
+    try {
+        let documentId = req.query.id;
+        let info = await documentService.suggestDocument(documentId);
+        return res.status(200).json(info);
+    } catch (error) {
+        console.log(error);
+        return res.status(200).json({
+            errCode: -1,
+            message: 'Error from Server!...'
+        })
+    }
+}
+
 module.exports = {
     homePage,
     handleRegisterUser,
@@ -358,7 +414,9 @@ module.exports = {
     handleGetFavourDocument,
     hadndleApprovedDocument,
     hadndleRejectDocument,
-    handleGetPendingDocument,
+    handleGetManageDocument,
     handleGetDocumentByFaculty,
-    handleGetDocumentByMajor
+    handleGetDocumentByMajor,
+    handleGetDocumentByKeyword,
+    handleGetSuggestDocument
 }
